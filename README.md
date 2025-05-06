@@ -4,7 +4,7 @@
 
 ## Overview
 
-This plugin extends the core **Flow Graph** system (`Flow.uplugin`) to provide a robust framework for creating complex narrative experiences within Unreal Engine 5.5. It acts as a powerful plugin for narrative systems, enabling features like branching dialogue, Quick Time Events (QTEs), object inspection mechanics, memory tracking of player interactions, and managing story facts.
+This plugin extends the core **Flow Graph** system (https://github.com/MothCocoon/FlowGraph) to provide a robust framework for creating complex narrative experiences within Unreal Engine 5.5. It acts as a powerful plugin for narrative systems, enabling features like branching dialogue, Quick Time Events (QTEs), object inspection mechanics, memory tracking of player interactions, and managing story facts.
 
 Leveraging the flexibility of Flow Graph, this plugin integrates seamlessly with **InkCPP** for powerful ink script support, allowing designers to write intricate narrative logic.
 
