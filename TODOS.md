@@ -1,0 +1,23 @@
+- [~] **InkCPP Integration**: Core InkCPP interactions (loading, text, choices, vars, external functions) are implemented in `UInkNarrativeSubsystem`. Remaining TODOs may exist for node-specific utilization of these features or advanced Ink functionalities.
+- [x] **Data Pin Implementation**: For `FlowInkPropertyNode`, `SetupDataPins` method now creates and manages typed `FFlowDataPin`s (Bool, Int, Float, String) based on user-selected `VariableType`. `ExecuteInput` handles typed Get/Set operations.
+- [x] **Build.cs Updates**: C++ files for core Ink nodes (`FlowInkNodeBase`, `FlowInkTextNode`, `FlowInkChoiceNode`, `FlowInkPropertyNode`, `FlowInkConditionNode`) and additional nodes (`FlowInkGlobalEventNode`, `FlowInkObservationNode`, `FlowInkSetVariableNode`, `FlowInkTagEventNode`) exist and are auto-detected by UBT. Ensure they are accessible in the FlowGraph editor after compilation.
+- [x] **Error Handling**: Implement/review robust error handling within all Ink-related FlowNodes (e.g., story not loaded, invalid property/condition names, subsystem unavailable).
+  - [x] `FlowInkPropertyNode`: Reviewed and enhanced. Added dedicated 'Error' output pin and uses `LogError()` for visual feedback.
+  - [x] `FlowInkTextNode`: Reviewed and enhanced. Added 'Error' output pin, uses `LogError()`, and fixed `TextOut` pin assignment.
+  - [x] `FlowInkChoiceNode`: Reviewed and enhanced. Added 'Error' output pin, uses `LogError()`, and refined logic for choice fetching and execution to trigger ErrorPin on failures (e.g. subsystem unavailable, no choices, failed MakeChoice).
+  - [x] `FlowInkConditionNode`: Reviewed and enhanced. Added 'Error' output pin, uses `LogError()`. Evaluates Ink boolean variables and triggers ErrorPin on failures (e.g., subsystem unavailable, story not loaded, condition name not set, variable not found, or variable type incompatible with boolean).
+  - [x] `FlowInkGlobalEventNode`: Reviewed and enhanced. Added 'Error' output pin. Triggers ErrorPin and uses `LogError()` if listener setup fails in `OnActivate` (e.g., invalid EventChannel, World/Subsystem unavailable, listener registration failure).
+  - [x] `FlowInkObservationNode`: Reviewed and enhanced. Added 'Error' output pin. Triggers ErrorPin and uses `LogError()` in `StartPolling` if setup fails (e.g., empty InkVariableName, PollingInterval <= 0, GameInstance/InkSubsystem unavailable or story not loaded).
+  - [x] `FlowInkTagEventNode`: Reviewed and enhanced. Added 'Error' output pin. Triggers ErrorPin and uses `LogError()` in `TrySubscribeToTagEvents` if setup fails (e.g., GameInstance/InkSubsystem/InkRunner unavailable or story not loaded).
+  - [x] `FlowInkSetVariableNode`: Reviewed and enhanced. Added 'Error' output execution pin. Triggers 'Error' pin and sets 'Success' data pin to false if setup fails (e.g., empty InkVariableName, GameInstance/InkNarrativeSubsystem unavailable). 'Out' pin triggers if setup is okay, 'Success' data pin reflects outcome of setting variable.
+- [x] **Dynamic Choice Pins**: For `FlowInkChoiceNode`, implemented a UI-driven model. 
+    - Node dynamically creates visual output pins (e.g., "Choice_0", "Choice_1") based on runtime choices for editor feedback.
+    - Added `ConfirmSelectionPin` (input execution) and `SelectedChoiceOriginalIndex` (input FFlowPropertyInt data pin).
+    - Game UI should get choices via `GetAvailableChoices()`, then set `SelectedChoiceOriginalIndex` and trigger `ConfirmSelectionPin`.
+    - `ChoicesAvailablePin` (output execution) triggers after choices are fetched.
+    - `ChoiceMadePin` (output execution) triggers after a choice is successfully made via `ConfirmSelectionPin`.
+- [ ] **Ink Story Asset Management**: Design a clear pattern for how FlowGraphs or related game components specify/reference Ink story assets (e.g., `UInkAsset`) for the `UInkNarrativeSubsystem` to load and use.
+- [~] **Runtime Ink Instance Management**: `UInkNarrativeSubsystem` acts as the central manager for Ink story instances (MainRunner, GlobalRunner), accessed by FlowNodes. This is largely addressed.
+- [ ] **Asynchronous Operations**: Consider and implement asynchronous patterns for potentially long-running Ink operations (e.g., loading very large stories, complex evaluations) to prevent blocking game flow.
+- [ ] **Testing**: Create test cases or example FlowGraphs to verify the functionality of each Ink node type as they are developed/finalized.
+- [ ] **Review QTE Nodes**: `QTEDataAsset.h`, `QTESubsystem.h`, `QTESubsystem.cpp` exist. Review their functionality and integration with FlowGraph if they are intended to be part of this system or if they require similar Ink integration points.

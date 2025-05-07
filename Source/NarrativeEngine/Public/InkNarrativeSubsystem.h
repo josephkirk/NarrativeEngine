@@ -1,0 +1,140 @@
+// Copyright Joseph Kirk 2025
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Subsystems/GameInstanceSubsystem.h"
+#include "Types/InkEventMessageTypes.h" // Added for FInkExternalFunctionMessage
+#include "GameplayMessageSubsystem.h" // Added for UGameplayMessageSubsystem
+#include "InkNarrativeSubsystem.generated.h"
+
+// Forward declarations for InkCPP types
+namespace ink { namespace runtime { class story; class runner; class globals; } }
+class UInkAsset; // Forward declare UInkAsset
+
+/**
+ * Manages the Ink story runtime, including loading stories and providing access to the story and runner.
+ */
+UCLASS()
+class NARRATIVEENGINE_API UInkNarrativeSubsystem : public UGameInstanceSubsystem
+{
+	GENERATED_BODY()
+
+public:
+	// Default FName for the main story runner.
+	static const FName MainStoryRunnerName;
+
+	//~ Begin USubsystem interface
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	//~ End USubsystem interface
+
+	/**
+	 * Loads an Ink story from the given compiled JSON file path.
+	 * @param StoryAssetPath The path to the compiled Ink JSON asset (e.g., /Game/InkStories/MyStory.MyStory_Ink)
+	 * @return True if the story was loaded successfully, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ink Narrative")
+	bool LoadStory(const FString& StoryAssetPath);
+
+	/**
+	 * Loads the given Ink story asset and prepares it for execution on the specified runner.
+	 * If a story is already loaded on that runner, it will be replaced.
+	 * @param StoryAsset The UInkAsset to load.
+	 * @param RunnerName The FName identifier for the runner this story will be associated with. Defaults to MainStoryRunnerName.
+	 * @return True if the story was successfully loaded, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ink Narrative Subsystem")
+	bool LoadStoryForRunner(UInkAsset* StoryAsset, FName RunnerName = MainStoryRunnerName);
+
+	/** Gets the currently loaded Ink story instance. */
+	ink::runtime::story* GetStory() const { return CurrentStory; }
+
+	/**
+	 * Retrieves an active Ink runner by its name.
+	 * @param RunnerName The name of the runner to retrieve. Defaults to MainStoryRunnerName.
+	 * @return Pointer to the ink::runtime::runner, or nullptr if not found or not valid.
+	 */
+	ink::runtime::runner* GetRunner(FName RunnerName = MainStoryRunnerName);
+	
+	/**
+	 * Retrieves the global variables store for a given runner.
+	 * @param RunnerName The name of the runner whose globals are to be retrieved. Defaults to MainStoryRunnerName.
+	 * @return Pointer to the ink::runtime::globals, or nullptr if not found or not valid.
+	 */
+	ink::runtime::globals* GetGlobals(FName RunnerName = MainStoryRunnerName);
+
+	/** Gets the main Ink runner instance. */
+	ink::runtime::runner* GetMainRunner() const { return MainRunner; }
+
+	/** Checks if a story is currently loaded. */
+	UFUNCTION(BlueprintPure, Category = "Ink Narrative")
+	bool IsStoryLoaded() const { return CurrentStory != nullptr && MainRunner != nullptr; }
+
+	/**
+	 * Gets the value of an Ink variable as a string.
+	 * @param VariableName The name of the Ink variable (e.g., "player_gold").
+	 * @param bFound Set to true if the variable was found, false otherwise.
+	 * @return The string representation of the variable's value, or an empty string if not found or if the story/runner is not loaded.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ink Narrative")
+	FString GetVariableValueAsString(const FString& VariableName, bool& bFound) const;
+
+	/**
+	 * Binds an Ink external function to broadcast a GameplayMessage when called.
+	 * The message will be of type FInkExternalFunctionMessage and broadcast on the specified channel tag.
+	 * @param FunctionName The name of the external function in the Ink story.
+	 * @param MessageChannelTag The GameplayTag channel to broadcast the message on.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ink Narrative", meta=(AdvancedDisplay="MessageChannelTag"))
+	void BindExternalFunctionWithMessage(const FString& FunctionName, FGameplayTag MessageChannelTag = FGameplayTag::RequestGameplayTag(FName("Ink.Event.ExternalFunctionCall")));
+
+	/**
+	 * Sets the value of an Ink variable from a string.
+	 * The subsystem will attempt to convert the string to the appropriate Ink type.
+	 * @param VariableName The name of the Ink variable (e.g., "player_gold").
+	 * @param ValueAsString The new value for the variable, as a string.
+	 * @return True if the variable was set successfully, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ink Narrative")
+	bool SetVariableValueFromString(const FString& VariableName, const FString& ValueAsString);
+
+	// Gets the value of an Ink variable, attempting to interpret it as a boolean.
+	// Returns the variable's boolean value in OutValue.
+	// Sets bFound to true if the variable exists, false otherwise.
+	// Returns true if the variable exists AND could be interpreted as a boolean, false otherwise.
+	UFUNCTION(BlueprintCallable, Category = "Ink Narrative")
+	bool GetVariableValueAsBool(const FString& VariableName, bool& bFound, bool& OutValue) const;
+
+	/**
+	 * Converts an ink::runtime::value to an FString for logging or display.
+	 * @param InkValue The ink value to convert.
+	 * @param PropertyNameForLogging Optional FName of the property, used for logging if conversion is complex.
+	 * @return FString representation of the InkValue.
+	 */
+	FString ConvertInkValueToString(const ink::runtime::value& InkValue, const FName& PropertyNameForLogging = NAME_None) const;
+
+protected:
+	// Called to clean up a specific runner and its associated story and globals.
+	void ReleaseRunnerResources(FName RunnerName);
+
+private:
+	// Map of active Ink stories, keyed by runner name.
+	// UPROPERTY() // Not strictly needed for raw pointers, but good if these were UObject wrappers
+	TMap<FName, ink::runtime::story*> LoadedStories;
+
+	// Map of Ink global variable stores, keyed by runner name.
+	TMap<FName, ink::runtime::globals*> GlobalVariables;
+
+	// Map of active Ink runners, keyed by runner name.
+	TMap<FName, ink::runtime::runner*> ActiveRunners;
+
+	// The current Ink story instance
+	ink::runtime::story* CurrentStory = nullptr;
+
+	// The main runner for the current story
+	ink::runtime::runner* MainRunner = nullptr;
+
+	// Helper to clean up story and runner
+	void UnloadStory();
+};

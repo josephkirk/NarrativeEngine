@@ -27,6 +27,8 @@ public class NarrativeEngine : ModuleRules
 			{
 				"Core",
 				"EnhancedInput",
+				"FlowGraph", // Added for UFlowNode
+				"GameplayMessageRuntime", // Added for Gameplay Messages
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -39,6 +41,7 @@ public class NarrativeEngine : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
+				"InkCPP", // Added for Ink integration
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
