@@ -16,7 +16,11 @@
     - Game UI should get choices via `GetAvailableChoices()`, then set `SelectedChoiceOriginalIndex` and trigger `ConfirmSelectionPin`.
     - `ChoicesAvailablePin` (output execution) triggers after choices are fetched.
     - `ChoiceMadePin` (output execution) triggers after a choice is successfully made via `ConfirmSelectionPin`.
-- [ ] **Ink Story Asset Management**: Design a clear pattern for how FlowGraphs or related game components specify/reference Ink story assets (e.g., `UInkAsset`) for the `UInkNarrativeSubsystem` to load and use.
+- [~] **Ink Story Asset Management**: Design a clear pattern for how FlowGraphs or related game components specify/reference Ink story assets (e.g., `UInkAsset`) for the `UInkNarrativeSubsystem` to load and use.
+  - [x] `UFlowAsset` now has a `DefaultInkStory` (`TSoftObjectPtr<UInkAsset>`) property.
+  - [x] `UFlowComponent::StartRootFlow()` automatically loads the `RootFlow`'s `DefaultInkStory` into `UInkNarrativeSubsystem::MainStoryRunnerName`.
+  - [ ] Test the `DefaultInkStory` loading mechanism from `UFlowComponent` through to `UInkNarrativeSubsystem`.
+  - [ ] Consider how other game contexts (not directly tied to a `UFlowComponent`'s `RootFlow`) might specify and load stories into named runners.
 - [~] **Runtime Ink Instance Management**: `UInkNarrativeSubsystem` acts as the central manager for Ink story instances (MainRunner, GlobalRunner), accessed by FlowNodes. This is largely addressed.
 - [ ] **Asynchronous Operations**: Consider and implement asynchronous patterns for potentially long-running Ink operations (e.g., loading very large stories, complex evaluations) to prevent blocking game flow.
 - [ ] **Testing**: Create test cases or example FlowGraphs to verify the functionality of each Ink node type as they are developed/finalized.
