@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Modular Narrative Generator V5</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .narrative-module {
+            border-left: 4px solid #4F46E5; /* Indigo-600 */
+            padding-left: 1rem;
+            margin-bottom: 1rem;
+            background-color: #F9FAFB; /* Gray-50 */
+            border-radius: 0.375rem; /* md */
+            padding: 1rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .narrative-module strong {
+            color: #3730A3; /* Indigo-800 */
+        }
+        .choice-button {
+            /* Custom styling for choice buttons if Tailwind defaults aren't enough */
+        }
+        #controlButton {
+            min-height: 48px; 
+        }
+        .theme-button {
+            /* Specific styling for theme buttons if needed */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4 py-8">
+
+    <div class="bg-white p-6 sm:p-8 rounded-lg shadow-xl w-full max-w-2xl">
+        <header class="mb-6 text-center">
+            <h1 class="text-2xl sm:text-3xl font-bold text-indigo-700">Interactive Narrative Generator</h1>
+            <p class="text-gray-600 mt-1 sm:mt-2">Richer stories with more choices, sub-types, and conditional text!</p>
+        </header>
+
+        <div class="mb-6 text-center">
+            <button id="controlButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-150 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 w-full sm:w-auto">
+                Start Narrative
+            </button>
+        </div>
+        
+        <div id="choicePoint" class="mt-4 mb-4">
+            </div>
+
+        <div id="narrativeOutput" class="space-y-3 bg-white p-4 sm:p-6 rounded-lg border border-gray-200 min-h-[200px] max-h-[50vh] overflow-y-auto mb-4 shadow-inner">
+            <p class="text-gray-500 italic text-center">Your story will unfold here...</p>
+        </div>
+
+        <div id="errorMessage" class="mt-4 text-red-600 text-sm hidden text-center p-3 bg-red-50 rounded-md border border-red-300"></div>
+    </div>
+
+    <script>
+        // --- Themes Definition ---
+        const AVAILABLE_THEMES = {
+            "NONE": "No Specific Theme",
+            "MYSTERY": "Mystery",
+            "ADVENTURE": "Adventure",
+            "DARK_FANTASY": "Dark Fantasy",
+            "POLITICAL_INTRIGUE": "Political Intrigue"
+        };
+
+        // --- Narrative Modules Definition ---
+        const modules = [
+            // SETUP
+            {
+                id: "S001", type: "SETUP",
+                text: "In the sleepy village of Oakhaven, nestled by the ancient Whispering Woods, life was simple and predictable. The annual harvest festival was just weeks away.",
+                requiresTags: [], providesTags: ["village_setting", "peaceful_start", "forest_nearby", "festival_approaching", "char_hero_state_healthy"],
+                themeTags: ["ADVENTURE"] 
+            },
+            {
+                id: "S002", type: "SETUP",
+                text: "The sprawling desert city of Solara shimmered under a relentless sun. Its markets teemed with exotic goods, and whispers of forgotten magic echoed in its ancient sandstone alleys.",
+                requiresTags: [], providesTags: ["city_setting", "desert_environment", "magic_rumors", "bustling_market", "char_hero_state_healthy"],
+                themeTags: ["ADVENTURE", "MYSTERY"]
+            },
+            {
+                id: "S003", type: "SETUP",
+                text: "A lone lighthouse stood defiantly against the stormy Azurean Sea. Its keeper, old Elara, had seen more than her share of strange tides and stranger debris washed ashore.",
+                requiresTags: [], providesTags: ["coastal_setting", "isolation", "stormy_sea", "mysterious_keeper", "char_hero_state_healthy", "char_elara_state_present", "char_elara_emotion_neutral"],
+                themeTags: ["MYSTERY"]
+            },
+             {
+                id: "S004_CAPITAL_CITY", type: "SETUP",
+                text: "The grand capital city of Eldoria, a beacon of civilization, is abuzz with preparations for the King's Jubilee. However, beneath the polished veneer, political tensions simmer.",
+                requiresTags: [], providesTags: ["capital_city_setting", "political_tension", "kings_jubilee", "char_hero_state_healthy"],
+                themeTags: ["POLITICAL_INTRIGUE", "MYSTERY"]
+            },
+
+
+            // INCITING INCIDENT
+            {
+                id: "I001", type: "INCITING_INCIDENT",
+                text: "A terrified villager stumbled into Oakhaven, babbling about a monstrous shadow that devoured livestock in the Whispering Woods.",
+                requiresTags: ["village_setting", "forest_nearby"], providesTags: ["monster_threat", "woods_danger", "community_fear"],
+                themeTags: ["DARK_FANTASY", "ADVENTURE"],
+                forbiddenTags: ["peace_treaty_active"] 
+            },
+            {
+                id: "I002", type: "INCITING_INCIDENT",
+                text: "A cryptic map, purchased for a song at the Solara market, hinted at a hidden oasis said to hold the legendary Sunstone of Power.",
+                conditionalTexts: [
+                    { requiresOneOfTags: ["theme_MYSTERY"], text: "A cryptic map, its symbols barely legible, was slipped into your pocket in the bustling Solara market. It whispers of a forgotten oasis and the legendary Sunstone of Power, a puzzle waiting to be solved."}
+                ],
+                requiresTags: ["city_setting", "magic_rumors"], providesTags: ["quest_for_artifact", "hidden_location_map", "sunstone_legend", "item_has_cryptic_map"],
+                themeTags: ["ADVENTURE", "MYSTERY"]
+            },
+            {
+                id: "I003", type: "INCITING_INCIDENT",
+                text: "During a fierce tempest, a peculiar, glowing artifact washed up at the foot of Elara's lighthouse, humming with an unknown energy.",
+                requiresTags: ["coastal_setting", "stormy_sea"], providesTags: ["mysterious_artifact_found", "unknown_energy", "artifact_origin_quest", "item_has_glowing_artifact"],
+                themeTags: ["MYSTERY"]
+            },
+            {
+                id: "I004", type: "INCITING_INCIDENT",
+                text: "The revered Elderbloom tree, heart of Oakhaven's upcoming festival, began to wither with an unnatural speed, casting a pall over the village.",
+                requiresTags: ["village_setting", "festival_approaching"], providesTags: ["dying_sacred_tree", "festival_in_jeopardy", "supernatural_blight"],
+                themeTags: ["DARK_FANTASY", "MYSTERY"]
+            },
+            {
+                id: "I005_ASSASSINATION_PLOT", type: "INCITING_INCIDENT",
+                text: "A coded message, intercepted by chance, reveals a dastardly plot to assassinate a high-ranking noble during the King's Jubilee in Eldoria.",
+                requiresTags: ["capital_city_setting", "political_tension"], providesTags: ["assassination_plot_discovered", "noble_in_danger", "time_sensitive_mission", "item_has_coded_message"],
+                themeTags: ["POLITICAL_INTRIGUE", "MYSTERY"]
+            },
+
+            // RISING ACTION 1
+            {
+                id: "RA001", type: "RISING_ACTION_1_CALL_TO_ACTION",
+                text: "The village council, desperate, offered a reward for anyone brave enough to investigate the shadow in the Whispering Woods.",
+                requiresTags: ["monster_threat", "community_fear"], providesTags: ["investigation_quest", "hero_call_to_action"],
+                themeTags: ["ADVENTURE", "DARK_FANTASY"]
+            },
+            {
+                id: "RA002", type: "RISING_ACTION_1_INVESTIGATION",
+                text: "Deciphering the map required consulting a reclusive scholar in Solara, known for his knowledge of ancient languages and forbidden lore.",
+                requiresTags: ["quest_for_artifact", "hidden_location_map", "item_has_cryptic_map"], providesTags: ["seeking_scholar", "lore_challenge", "item_used_cryptic_map"],
+                themeTags: ["MYSTERY", "ADVENTURE"]
+            },
+            {
+                id: "RA003", type: "RISING_ACTION_1_LORE",
+                text: "Elara, recognizing symbols on the artifact, recalled old sea tales of a sunken city and its powerful relics.",
+                requiresTags: ["mysterious_artifact_found", "mysterious_keeper", "item_has_glowing_artifact", "char_elara_state_present"], providesTags: ["sunken_city_legend", "relic_connection"],
+                themeTags: ["MYSTERY"]
+            },
+             {
+                id: "RA004", type: "RISING_ACTION_1_QUEST",
+                text: "The village herbalist suggested the Elderbloom's affliction might be countered by rare Moonpetal flowers, found only on the treacherous Shadowpeak Mountain.",
+                requiresTags: ["dying_sacred_tree", "village_setting"], providesTags: ["cure_quest", "dangerous_journey_mountain", "rare_ingredient_needed_moonpetal"],
+                themeTags: ["ADVENTURE", "DARK_FANTASY"]
+            },
+            { 
+                id: "RA009_PEACE_TALK", type: "RISING_ACTION_1_DIPLOMACY",
+                text: "An envoy from a nearby, usually hostile, settlement arrives, proposing a surprising truce to face a common, greater threat.",
+                requiresTags: ["community_fear"], 
+                providesTags: ["peace_treaty_negotiation", "unlikely_ally_possibility", "common_threat_hinted"],
+                themeTags: ["MYSTERY", "POLITICAL_INTRIGUE"],
+                forbiddenTags: ["settlement_destroyed"] 
+            },
+            {
+                id: "RA_VILLAGE_RAID", type: "RISING_ACTION_1_DISASTER",
+                text: "The monstrous shadow, unchecked, rampages through Oakhaven. Buildings burn, and the villagers scatter in terror, leaving their homes in ruins.",
+                requiresTags: ["village_setting", "monster_threat"],
+                providesTags: ["village_damaged", "survivors_fleeing", "settlement_destroyed", "community_traumatized"],
+                themeTags: ["DARK_FANTASY"]
+            },
+            {
+                id: "RA_ANOTHER_ARTIFACT_RUMOR", type: "RISING_ACTION_1_LEAD",
+                text: "While the Sunstone is a grand prize, another rumor surfaces in Solara: a lesser, but still potent, artifact, the Moon Sigil, is said to be hidden in the old quarter.",
+                requiresTags: ["magic_rumors", "city_setting"],
+                providesTags: ["secondary_artifact_quest", "new_lead_moon_sigil"],
+                themeTags: ["MYSTERY"],
+                forbiddenTags: ["main_artifact_already_found"]
+            },
+            {
+                id: "RA_IMPRESS_ELARA", type: "RISING_ACTION_1_INTERACTION",
+                text: "You speak with Elara, showing insight about the strange tides and the artifact you found. She seems impressed by your astuteness and offers a cryptic hint about a hidden mechanism in the lighthouse.",
+                requiresTags: ["char_elara_state_present", "mysterious_artifact_found", "char_elara_emotion_neutral"],
+                providesTags: ["char_elara_emotion_impressed", "lighthouse_mechanism_hinted"],
+                forbiddenTags: ["char_elara_emotion_hostile", "char_elara_emotion_impressed"],
+                themeTags: ["MYSTERY"]
+            },
+            {
+                id: "RA_FIND_OLD_KEY_LIGHTHOUSE", type: "RISING_ACTION_1_DISCOVERY",
+                text: "Following Elara's hint (or by careful searching), you discover a loose stone at the lighthouse base. Behind it, an old, salt-encrusted key.",
+                requiresTags: ["char_elara_state_present", "coastal_setting", "lighthouse_mechanism_hinted"],
+                providesTags: ["item_has_lighthouse_key"],
+                themeTags: ["MYSTERY", "ADVENTURE"]
+            },
+            {
+                id: "RA1_GUARD_POST", type: "RISING_ACTION_1_OBSTACLE",
+                text: "A stern guard blocks the path, demanding to know your business.", // Default text
+                conditionalTexts: [
+                    { requiresAllOfTags: ["item_has_official_pass"], text: "The guard sees your official pass and nods, 'You may proceed.'" },
+                    { requiresOneOfTags: ["char_hero_state_wounded"], text: "The guard eyes your injuries and says, 'State your business, and make it quick. You don't look well.'" }
+                ],
+                requiresTags: ["journey_begins"], // Generic tag indicating player is on a path
+                providesTags: ["guard_encountered", "path_temporarily_blocked"],
+                themeTags: ["ADVENTURE", "POLITICAL_INTRIGUE"]
+            },
+             {
+                id: "RA1_DECIPHER_CODED_MESSAGE", type: "RISING_ACTION_1_PUZZLE",
+                text: "The coded message regarding the assassination plot is complex. You need to find a quiet place and perhaps a contact with knowledge of ciphers to understand its full meaning.",
+                requiresTags: ["item_has_coded_message", "assassination_plot_discovered"],
+                providesTags: ["seek_cipher_expert", "message_partially_deciphered"],
+                themeTags: ["MYSTERY", "POLITICAL_INTRIGUE"]
+            },
+
+            // RISING ACTION 2
+            {
+                id: "RA005", type: "RISING_ACTION_2_EXPLORATION",
+                text: "The hero, armed with a rusty sword and a determined heart, ventured into the ominous depths of the Whispering Woods.",
+                requiresTags: ["investigation_quest", "hero_call_to_action", "woods_danger"], providesTags: ["journey_begins", "forest_exploration"] // journey_begins is generic
+            },
+            {
+                id: "RA006", type: "RISING_ACTION_2_INFORMATION",
+                text: "The scholar, after much persuasion (and a hefty sum of gold), revealed the oasis's location but warned of ancient guardians protecting it.",
+                requiresTags: ["seeking_scholar", "lore_challenge"], providesTags: ["oasis_location_revealed", "guardian_warning"]
+            },
+            {
+                id: "RA007", type: "RISING_ACTION_2_EXPEDITION",
+                text: "Using a makeshift raft, Elara and a young, adventurous fisher decided to search for evidence of the sunken city near the treacherous Serpent's Teeth shoals.",
+                requiresTags: ["sunken_city_legend", "coastal_setting", "char_elara_state_present"], providesTags: ["sea_expedition", "dangerous_waters"]
+            },
+            {
+                id: "RA008", type: "RISING_ACTION_2_CHALLENGE",
+                text: "The ascent of Shadowpeak Mountain was fraught with peril: crumbling paths, biting winds, and territorial mountain beasts.",
+                requiresTags: ["cure_quest", "dangerous_journey_mountain", "rare_ingredient_needed_moonpetal"], providesTags: ["mountain_climb_hardship", "beast_encounters"]
+            },
+            {
+                id: "RA_ALLY_DOUBLE_CROSS", type: "RISING_ACTION_2_BETRAYAL",
+                text: "The supposed peace talk was a trap! The envoy's forces ambush you during negotiations, their leader revealing a deeper, more sinister agenda.",
+                requiresTags: ["peace_treaty_negotiation", "unlikely_ally_possibility"],
+                providesTags: ["ally_betrayed_us", "new_enemy_revealed", "trust_shattered", "peace_treaty_broken"],
+                themeTags: ["MYSTERY", "DARK_FANTASY", "POLITICAL_INTRIGUE"]
+            },
+            {
+                id: "RA_HERO_WOUNDED_FOREST", type: "RISING_ACTION_2_ENCOUNTER",
+                text: "While navigating the treacherous Whispering Woods, a hidden thorned vine lashes out, leaving a nasty gash on the hero's arm. The wound needs attention.",
+                requiresTags: ["forest_exploration", "char_hero_state_healthy"], 
+                providesTags: ["char_hero_state_wounded", "hero_needs_healing_minor"],
+                forbiddenTags: ["char_hero_state_wounded"], 
+                themeTags: ["ADVENTURE", "DARK_FANTASY"]
+            },
+            {
+                id: "RA_FIND_HEALING_HERBS", type: "RISING_ACTION_2_DISCOVERY",
+                text: "Searching carefully, or perhaps guided by an old piece of lore, you find a patch of Sunpetal herbs, known for their potent healing properties.",
+                requiresTags: ["hero_needs_healing_minor", "journey_begins"], 
+                providesTags: ["item_has_healing_herbs"],
+                forbiddenTags: ["item_has_healing_herbs"], 
+                themeTags: ["ADVENTURE"]
+            },
+            {
+                id: "RA_APPLY_HERBS_HEAL", type: "RISING_ACTION_2_ACTION",
+                text: "You carefully apply the Sunpetal herbs to your wound. A soothing warmth spreads, and the injury begins to mend rapidly.",
+                requiresTags: ["char_hero_state_wounded", "item_has_healing_herbs", "hero_needs_healing_minor"],
+                providesTags: ["char_hero_state_healthy", "item_used_healing_herbs", "hero_needs_healing_minor_resolved"], 
+                themeTags: ["ADVENTURE"]
+            },
+            { 
+                id: "RA_INVESTIGATE_MOON_SIGIL_SOLARA", type: "RISING_ACTION_2_INVESTIGATION",
+                text: "Following the rumors of the Moon Sigil, you begin to ask around the old quarter of Solara. A shifty informant whispers that the sigil is connected to a forgotten cult and points you towards a crumbling shrine hidden beneath the marketplace.",
+                requiresTags: ["secondary_artifact_quest", "new_lead_moon_sigil", "city_setting"],
+                providesTags: ["moon_sigil_cult_info", "hidden_shrine_location_moon_sigil", "informant_met_moon_sigil"],
+                themeTags: ["MYSTERY"]
+            },
+            {
+                id: "RA2_MEET_UNDERWORLD_CONTACT", type: "RISING_ACTION_2_MEETING",
+                text: "To decipher the coded message fully, you seek out an underworld contact known as 'Whispers' in the dimly lit back alleys of Eldoria. They agree to help, for a price or a favor.",
+                requiresTags: ["seek_cipher_expert", "capital_city_setting"],
+                providesTags: ["underworld_contact_met", "message_deciphered_fully", "item_used_coded_message", "debt_to_underworld"],
+                themeTags: ["MYSTERY", "POLITICAL_INTRIGUE"]
+            },
+
+
+            // CLIMAX
+            {
+                id: "C001", type: "CLIMAX_CONFRONTATION",
+                text: "In a moonlit clearing, the hero confronted the 'shadow' – a giant, corrupted treant, its heart twisted by a dark crystal.",
+                requiresTags: ["forest_exploration", "monster_threat"], providesTags: ["final_confrontation", "corrupted_guardian_battle", "final_confrontation_imminent"]
+            },
+            {
+                id: "C002", type: "CLIMAX_ARTIFACT_RETRIEVAL",
+                text: "At the heart of the hidden oasis, the Sunstone pulsed with power, guarded by stone sentinels animated by ancient magic.",
+                requiresTags: ["oasis_location_revealed", "guardian_warning", "quest_for_artifact"], providesTags: ["artifact_retrieval_battle", "magic_sentinels", "main_artifact_already_found", "item_has_sunstone", "final_confrontation_imminent"]
+            },
+            {
+                id: "C003", type: "CLIMAX_DISCOVERY",
+                text: "Braving a sudden squall and whirlpools, their raft was pulled down into a breathtaking underwater cavern, revealing the entrance to the sunken city.",
+                requiresTags: ["sea_expedition", "sunken_city_legend", "item_has_glowing_artifact"], providesTags: ["sunken_city_discovered", "underwater_peril", "final_confrontation_imminent"]
+            },
+            {
+                id: "C004", type: "CLIMAX_RACE_AGAINST_TIME",
+                text: "At the icy summit of Shadowpeak, guarded by an ancient frost wyrm, the last patch of Moonpetal flowers bloomed under the aurora. You gather them just as the beast awakens!",
+                requiresTags: ["mountain_climb_hardship", "rare_ingredient_needed_moonpetal", "cure_quest"], providesTags: ["final_guardian_battle_wyrm", "ingredient_secured_high_stakes", "item_has_moonpetal_flowers", "final_confrontation_imminent"]
+            },
+            {
+                id: "C_DESPERATE_HEALING", type: "CLIMAX_RITUAL",
+                text: "At their weakest from the strange illness, the hero stumbles upon an ancient, hidden shrine. With their last ounce of strength, they perform a desperate ritual. A wave of volatile energy washes over them, curing the sickness but leaving an unknown, subtle mark.",
+                requiresTags: ["hero_is_sick", "final_confrontation_imminent"], 
+                providesTags: ["hero_healed_by_magic", "minor_curse_taken", "sickness_cured_at_cost", "char_hero_state_healthy"],
+                themeTags: ["DARK_FANTASY"],
+                forbiddenTags: ["hero_already_healed_naturally", "hero_needs_healing_minor_resolved"] 
+            },
+            {
+                id: "C_UNLOCK_LIGHTHOUSE_SECRET_ROOM", type: "CLIMAX_REVELATION",
+                text: "Using the old key, you unlock a hidden hatch in the lighthouse floor! It reveals a secret chamber filled with ancient charts detailing the source of the sea's recent disturbances and a device to calm them.",
+                requiresTags: ["item_has_lighthouse_key", "char_elara_state_present", "final_confrontation_imminent", "coastal_setting"],
+                providesTags: ["item_used_lighthouse_key", "lighthouse_secret_room_discovered", "major_clue_found_sea_disturbance", "device_to_calm_sea_found"],
+                themeTags: ["MYSTERY"]
+            },
+             {
+                id: "C_JUBILEE_INTERVENTION", type: "CLIMAX_INTERVENTION",
+                text: "During the King's Jubilee, as the assassin makes their move on the noble, you intervene! A chaotic struggle ensues amidst the panicked crowds and royal guards.",
+                requiresTags: ["assassination_plot_discovered", "noble_in_danger", "capital_city_setting", "message_deciphered_fully", "kings_jubilee"],
+                providesTags: ["assassin_confronted", "noble_saved_attempt", "public_chaos", "final_confrontation_imminent"],
+                themeTags: ["POLITICAL_INTRIGUE", "ADVENTURE"]
+            },
+
+
+            // RESOLUTION
+            {
+                id: "R001", type: "RESOLUTION",
+                text: "By shattering the dark crystal, the treant was freed from its corruption. The Whispering Woods slowly began to heal, and Oakhaven celebrated their hero.",
+                requiresTags: ["final_confrontation", "corrupted_guardian_battle", "village_setting"], providesTags: ["evil_vanquished", "nature_healed", "hero_celebrated"]
+            },
+            {
+                id: "R002", type: "RESOLUTION",
+                text: "With the Sunstone secured, Solara's scholars began to unlock its secrets, ushering in an age of enlightened magic. The hero was hailed as a legend.",
+                requiresTags: ["artifact_retrieval_battle", "magic_sentinels", "city_setting", "sunstone_legend", "item_has_sunstone"], providesTags: ["artifact_used_for_good", "new_era_of_magic", "legend_born", "item_used_sunstone"]
+            },
+            {
+                id: "R003", type: "RESOLUTION",
+                text: "Activating the ancient device in the lighthouse's secret room, the tumultuous seas calm, and the strange glowing artifacts cease to wash ashore. Elara becomes the revered guardian of a now peaceful coast.",
+                requiresTags: ["lighthouse_secret_room_discovered", "device_to_calm_sea_found", "char_elara_state_present"], providesTags: ["mystery_solved", "sea_calmed", "new_guardian_role_elara", "item_used_glowing_artifact"] 
+            },
+            {
+                id: "R004", type: "RESOLUTION",
+                text: "The Moonpetal flowers, carefully administered, revived the Elderbloom just in time for the most joyous harvest festival Oakhaven had ever seen.",
+                requiresTags: ["final_guardian_battle_wyrm", "ingredient_secured_high_stakes", "item_has_moonpetal_flowers", "dying_sacred_tree", "festival_approaching"], providesTags: ["sacred_tree_healed", "festival_saved", "community_rejoices", "hero_already_healed_naturally", "item_used_moonpetal_flowers"] 
+            },
+            {
+                id: "R005_POLITICAL_UPHEAVAL", type: "RESOLUTION",
+                text: "The attempted assassination is thwarted, and the conspirators are exposed. The kingdom is shaken, but a new era of cautious reform begins. You are hailed as a hero of the realm, though powerful enemies may linger in the shadows.",
+                requiresTags: ["assassin_confronted", "noble_saved_attempt", "capital_city_setting"],
+                providesTags: ["conspiracy_exposed", "kingdom_stabilized_for_now", "hero_of_the_realm", "lingering_enemies"],
+                themeTags: ["POLITICAL_INTRIGUE", "MYSTERY"]
+            }
+        ];
+
+        // --- Narrative Generation Logic ---
+        const storyStructure = ["SETUP", "INCITING_INCIDENT", "RISING_ACTION_1", "RISING_ACTION_2", "CLIMAX", "RESOLUTION"];
+        const choiceNodeTypes = ["INCITING_INCIDENT", "RISING_ACTION_1", "RISING_ACTION_2", "CLIMAX"]; // Added CLIMAX as potential choice point
+
+        let currentStoryModules = [];
+        let activeTags = new Set();
+        let storyStructureIndex = 0;
+        let selectedTheme = "NONE"; 
+        let gameState = 'INITIAL'; 
+
+        const controlButton = document.getElementById('controlButton');
+        const narrativeOutput = document.getElementById('narrativeOutput');
+        const choicePointDiv = document.getElementById('choicePoint');
+        const errorMessage = document.getElementById('errorMessage');
+
+        function initializeGlobalState() {
+            currentStoryModules = [];
+            activeTags = new Set();
+            storyStructureIndex = 0;
+            selectedTheme = "NONE";
+            
+            narrativeOutput.innerHTML = '<p class="text-gray-500 italic text-center">Your story will unfold here...</p>';
+            choicePointDiv.innerHTML = ''; 
+            errorMessage.classList.add('hidden');
+            errorMessage.textContent = '';
+        }
+
+        function startThemeSelection() {
+            initializeGlobalState();
+            controlButton.textContent = 'Please select a theme:';
+            controlButton.disabled = true;
+            gameState = 'AWAITING_THEME_CHOICE';
+            displayThemeChoices();
+        }
+
+        function displayThemeChoices() {
+            choicePointDiv.innerHTML = `<h3 class="text-lg font-semibold text-indigo-700 mb-3 text-center">Select a Theme:</h3>`;
+            const listElement = document.createElement('ul');
+            listElement.className = 'space-y-2';
+
+            Object.entries(AVAILABLE_THEMES).forEach(([themeKey, themeName]) => {
+                const listItem = document.createElement('li');
+                const button = document.createElement('button');
+                button.className = 'w-full bg-teal-500 hover:bg-teal-600 text-white font-medium py-2.5 px-4 rounded-md shadow-sm transition duration-150 ease-in-out text-sm text-left focus:outline-none focus:ring-2 focus:ring-teal-400 theme-button';
+                button.textContent = themeName;
+                button.dataset.themeKey = themeKey;
+
+                button.addEventListener('click', (event) => {
+                    handleThemeSelection(event.currentTarget.dataset.themeKey);
+                });
+                listItem.appendChild(button);
+                listElement.appendChild(listItem);
+            });
+            choicePointDiv.appendChild(listElement);
+            choicePointDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        
+        function handleThemeSelection(themeKey) {
+            selectedTheme = themeKey;
+            console.log("Theme selected:", selectedTheme);
+            if (selectedTheme !== "NONE") {
+                activeTags.add(`theme_${selectedTheme}`);
+            }
+            choicePointDiv.innerHTML = ''; 
+            gameState = 'AWAITING_SETUP_CHOICE';
+            controlButton.textContent = 'Please select a starting scenario:';
+            presentSetupChoices();
+        }
+
+
+        function presentSetupChoices() {
+            const setupModules = getPotentialModules("SETUP"); 
+            if (setupModules.length === 0) {
+                showError("No suitable SETUP modules available for the selected theme. Try a different theme or 'No Specific Theme'.");
+                controlButton.textContent = 'Select Different Theme';
+                controlButton.disabled = false; 
+                gameState = 'AWAITING_THEME_CHOICE'; 
+                return;
+            }
+            displayModuleChoices(setupModules, "SETUP", handleSetupChoice);
+            controlButton.disabled = true; 
+        }
+
+        function handleSetupChoice(chosenSetupModule) {
+            addModuleToStory(chosenSetupModule);
+            storyStructureIndex = 1; 
+            choicePointDiv.innerHTML = '';
+            controlButton.textContent = 'Next Step';
+            controlButton.disabled = false;
+            gameState = 'CAN_ADVANCE_STEP';
+        }
+        
+        function processNextStoryBeat() {
+            controlButton.disabled = true;
+
+            if (storyStructureIndex >= storyStructure.length) {
+                narrativeOutput.innerHTML += '<p class="text-green-700 font-semibold text-center mt-6 p-3 bg-green-50 rounded-md border border-green-300">Narrative Complete!</p>';
+                controlButton.textContent = 'Start New Narrative';
+                controlButton.disabled = false;
+                gameState = 'STORY_END';
+                choicePointDiv.innerHTML = '';
+                narrativeOutput.scrollTop = narrativeOutput.scrollHeight;
+                return;
+            }
+
+            const targetType = storyStructure[storyStructureIndex];
+            let allValidModulesForStage = getPotentialModules(targetType); 
+
+            console.log(`[DEBUG] Stage: ${targetType}. All valid modules BEFORE theme filter:`, allValidModulesForStage.map(m => m.id + " (" + m.type + ")"));
+
+            let modulesToConsider = allValidModulesForStage; 
+
+            if (selectedTheme !== "NONE" && allValidModulesForStage.length > 0) { 
+                const themedOptions = allValidModulesForStage.filter(m => m.themeTags && m.themeTags.includes(selectedTheme));
+                if (themedOptions.length > 0) {
+                    modulesToConsider = themedOptions; 
+                    console.log(`[DEBUG] Stage: ${targetType}. Modules AFTER theme filter (themed options found):`, modulesToConsider.map(m => m.id + " (" + m.type + ")"));
+                } else {
+                    console.log(`[DEBUG] Stage: ${targetType}. No themed modules found among valid options, using all valid (non-themed or differently-themed) modules.`);
+                }
+            } else if (selectedTheme === "NONE") {
+                 console.log(`[DEBUG] Stage: ${targetType}. No theme selected, using all valid modules.`);
+            }
+
+
+            if (modulesToConsider.length === 0) { 
+                console.log(`[DEBUG] No modules to consider for stage ${targetType}. Initial valid modules for stage:`, allValidModulesForStage.map(m=>m.id), "Theme:", selectedTheme, "Active Tags:", Array.from(activeTags));
+                showError(`Could not find a suitable module for: ${targetType.replace(/_/g, ' ')} with current story tags and theme. The story cannot continue.`);
+                controlButton.textContent = 'Start New Narrative';
+                controlButton.disabled = false;
+                gameState = 'ERROR_HALT';
+                return;
+            }
+
+
+            if (choiceNodeTypes.includes(targetType) && modulesToConsider.length > 1) {
+                displayModuleChoices(modulesToConsider, targetType, handlePlayerChoice);
+                controlButton.textContent = 'Make a choice below:';
+                gameState = 'AWAITING_PLAYER_CHOICE';
+            } else { 
+                const chosenModule = modulesToConsider[Math.floor(Math.random() * modulesToConsider.length)];
+                addModuleToStory(chosenModule);
+                storyStructureIndex++;
+                controlButton.textContent = 'Next Step';
+                controlButton.disabled = false;
+                gameState = 'CAN_ADVANCE_STEP';
+            }
+        }
+        
+        function handlePlayerChoice(chosenModule) {
+            addModuleToStory(chosenModule);
+            storyStructureIndex++;
+            choicePointDiv.innerHTML = '';
+            controlButton.textContent = 'Next Step';
+            controlButton.disabled = false;
+            gameState = 'CAN_ADVANCE_STEP';
+        }
+
+        function displayModuleChoices(choices, forType, choiceHandler) {
+            choicePointDiv.innerHTML = `<h3 class="text-lg font-semibold text-indigo-700 mb-3 text-center">Choose for: ${forType.replace(/_/g, ' ')}</h3>`;
+            const listElement = document.createElement('ul');
+            listElement.className = 'space-y-2';
+
+            choices.forEach(choice => {
+                const listItem = document.createElement('li');
+                const button = document.createElement('button');
+                button.className = 'w-full bg-sky-500 hover:bg-sky-600 text-white font-medium py-2.5 px-4 rounded-md shadow-sm transition duration-150 ease-in-out text-sm text-left focus:outline-none focus:ring-2 focus:ring-sky-400 choice-button';
+                
+                let buttonText = choice.text; // Default to base text
+                // Check for conditional text to display as choice prompt
+                if (choice.conditionalTexts && choice.conditionalTexts.length > 0) {
+                    for (const cond of choice.conditionalTexts) {
+                        let conditionMet = false;
+                        if (cond.requiresOneOfTags) {
+                            if (cond.requiresOneOfTags.some(tag => activeTags.has(tag))) {
+                                conditionMet = true;
+                            }
+                        }
+                        if (!conditionMet && cond.requiresAllOfTags) { // Check requiresAllOfTags if requiresOneOfTags wasn't met or doesn't exist
+                           if (cond.requiresAllOfTags.every(tag => activeTags.has(tag))) {
+                                conditionMet = true;
+                           }
+                        }
+                        if (conditionMet) {
+                            buttonText = cond.text; // Use conditional text for prompt
+                            break; 
+                        }
+                    }
+                }
+
+
+                if (choice.requiresTags && choice.requiresTags.some(tag => tag.startsWith("item_has_"))) {
+                    const item = choice.requiresTags.find(tag => tag.startsWith("item_has_")).replace("item_has_", "").replace(/_/g, " ");
+                    buttonText = `[Use ${item}] ${buttonText}`;
+                }
+
+                button.textContent = buttonText.substring(0, 100) + (buttonText.length > 100 ? '...' : ''); 
+                button.dataset.moduleId = choice.id;
+
+                button.addEventListener('click', (event) => {
+                    const selectedModuleId = event.currentTarget.dataset.moduleId;
+                    const selectedModule = modules.find(m => m.id === selectedModuleId);
+                    if (selectedModule) {
+                        choiceHandler(selectedModule);
+                    }
+                });
+                listItem.appendChild(button);
+                listElement.appendChild(listItem);
+            });
+            choicePointDiv.appendChild(listElement);
+            choicePointDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function getPotentialModules(targetType) {
+            return modules.filter(module => {
+                // Match base type or specific sub-type
+                if (!module.type.startsWith(targetType)) return false;
+                
+                if (module.requiresTags && module.requiresTags.length > 0) {
+                    for (const reqTag of module.requiresTags) {
+                        if (!activeTags.has(reqTag)) return false;
+                    }
+                }
+                if (module.forbiddenTags && module.forbiddenTags.length > 0) {
+                    for (const fobTag of module.forbiddenTags) {
+                        if (activeTags.has(fobTag)) return false;
+                    }
+                }
+                if (currentStoryModules.find(m => m.id === module.id)) return false;
+                return true;
+            });
+        }
+
+        function addModuleToStory(module) {
+            if (narrativeOutput.innerHTML.includes("Your story will unfold here...")) {
+                narrativeOutput.innerHTML = '';
+            }
+            currentStoryModules.push(module);
+
+            if (module.providesTags && module.providesTags.length > 0) {
+                module.providesTags.forEach(tag => {
+                    if (tag.startsWith("item_used_")) {
+                        activeTags.delete(tag.replace("item_used_", "item_has_")); 
+                        activeTags.add(tag); 
+                    } else if (tag.startsWith("char_hero_state_healthy") && activeTags.has("char_hero_state_wounded")) {
+                        activeTags.delete("char_hero_state_wounded"); 
+                        activeTags.delete("hero_needs_healing_minor"); 
+                        activeTags.add("hero_needs_healing_minor_resolved"); 
+                        activeTags.add(tag); 
+                    } else if (tag.startsWith("char_elara_emotion_")) { 
+                        const emotions = ["neutral", "impressed", "suspicious", "hostile", "trusting"];
+                        emotions.forEach(emo => activeTags.delete(`char_elara_emotion_${emo}`));
+                        activeTags.add(tag); 
+                    }
+                    else {
+                        activeTags.add(tag);
+                    }
+                });
+            }
+            
+            console.log("Active Tags after module '"+module.id+"':", Array.from(activeTags));
+
+            const moduleElement = document.createElement('div');
+            moduleElement.classList.add('narrative-module');
+            
+            let displayText = module.text; // Default to base text
+            // Check for conditional text
+            if (module.conditionalTexts && module.conditionalTexts.length > 0) {
+                for (const cond of module.conditionalTexts) {
+                    let conditionMet = false;
+                    if (cond.requiresOneOfTags && cond.requiresOneOfTags.some(tag => activeTags.has(tag))) {
+                        conditionMet = true;
+                    }
+                    if (!conditionMet && cond.requiresAllOfTags && cond.requiresAllOfTags.every(tag => activeTags.has(tag))) {
+                         conditionMet = true;
+                    }
+
+                    if (conditionMet) {
+                        displayText = cond.text;
+                        break; // Use the first matching conditional text
+                    }
+                }
+            }
+
+            moduleElement.innerHTML = `<p><strong class="text-indigo-700">${module.type.replace(/_/g, ' ')}:</strong> ${displayText}</p>`;
+            if (module.themeTags && module.themeTags.length > 0 && selectedTheme !== "NONE" && module.themeTags.includes(selectedTheme)) {
+                 moduleElement.innerHTML += `<span class="text-xs ml-2 inline-block py-0.5 px-1.5 leading-none text-center whitespace-nowrap align-baseline font-bold bg-teal-200 text-teal-700 rounded">Theme: ${AVAILABLE_THEMES[selectedTheme]}</span>`;
+            }
+            narrativeOutput.appendChild(moduleElement);
+            narrativeOutput.scrollTop = narrativeOutput.scrollHeight; 
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+            console.error("Narrative Generation Error:", message, "Active Tags:", Array.from(activeTags), "Selected Theme:", selectedTheme);
+            errorMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        controlButton.addEventListener('click', () => {
+            errorMessage.classList.add('hidden'); 
+            if (gameState === 'INITIAL' || gameState === 'STORY_END' || gameState === 'ERROR_HALT') {
+                startThemeSelection();
+            } else if (gameState === 'AWAITING_THEME_CHOICE') { 
+                startThemeSelection();
+            } else if (gameState === 'CAN_ADVANCE_STEP') {
+                processNextStoryBeat();
+            }
+        });
+        
+        controlButton.textContent = 'Start Narrative';
+        gameState = 'INITIAL';
+
+    </script>
+
+</body>
+</html>
